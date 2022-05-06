@@ -4,43 +4,22 @@ import modules.utils as utils
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+import configparser
+import json
 
+config = configparser.ConfigParser()
+config.read('config.ini')
 
-
-pages_list = [{"key": "HOME", "url": "https://www.1aauto.com/"}, 
-{"key": "SEARCH", "url": "https://www.1aauto.com/search?q=mirror"},
-{"key": "PDP", "url": "https://www.1aauto.com/toyota-lexus-front-and-rear-ceramic-brake-pad-and-rotor-kit-trq-bka11763/i/1abfs02636"},
-{"key": "PDP_TOOL", "url": "https://www.1aauto.com/disc-brake-service-kit-50-state-formula/i/1avck00001"},
-{"key": "PARTS", "url": "https://www.1aauto.com/catalog/parts"},
-{"key": "GRANDPA_CATEGORIES", "url": "https://www.1aauto.com/brakes-wheel-bearing/c/508"},
-{"key": "CATEGORIES", "url": "https://www.1aauto.com/abs-wheel-speed-sensor/c/133"},
-{"key": "MAKES", "url": "https://www.1aauto.com/catalog/makes"},
-{"key": "MAKE_RP", "url": "https://www.1aauto.com/infiniti-parts/ma/19"},
-{"key": "MODEL", "url": "https://www.1aauto.com/infiniti-q60-parts/mo/2199"},
-{"key": "YEAR_MODEL", "url": "https://www.1aauto.com/2016-infiniti-qx70-parts/y-mo/2016-2127"},
-{"key": "MODEL_CATEGORY", "url": "https://www.1aauto.com/infiniti-q60-headlights-lighting/mo-c/2199-275"},
-{"key": "YEAR_MODEL_CATEGORY", "url": "https://www.1aauto.com/2017-infiniti-q60-steeringsuspension/y-mo-c/2017-2199-509"},
-{"key": "BRANDS", "url": "https://www.1aauto.com/catalog/brands"},
-{"key": "BRAND_RP", "url": "https://www.1aauto.com/acdelco-parts/b/3"},
-{"key": "BRAND_CATEGORY", "url": "https://www.1aauto.com/acdelco-belts-serpentine-belts-and-v-belts/b-c/3-192"},
-{"key": "TRACKING", "url": "https://www.1aauto.com/tracking"},
-{"key": "CONTACT", "url": "https://www.1aauto.com/about/contact"},
-{"key": "RETURNS", "url": "https://www.1aauto.com/customer-service/returns"},
-{"key": "VIDEOS_HOME", "url": "https://www.1aauto.com/videos"},
-{"key": "VIDEOS_SEARCH", "url": "https://www.1aauto.com/search/videos?year=2018&model=271&videoSearchType=ymm"},
-{"key": "VIDEO_DETAIL", "url": "https://www.1aauto.com/how-to-reset-oil-life-maintenance-reminder-2015-20-cadillac-escalade/video/46823"},
-{"key": "VIDEOS_MAKE", "url": "https://www.1aauto.com/jeep-videos/ma-videos/23"},
-{"key": "VIDEOS_MODEL_RP", "url": "https://www.1aauto.com/jeep-gladiator-videos/mo-videos/441"},
-
-]
+pages_list = config['URLS']['list']
+pages_list = pages_list.split(',,')
 
 ss_dir_path = './ss'
 utils.createDir(ss_dir_path) #create the directory if doesnt exists
 
 
-def take_screenshot(page_name, file_key, screen_size):
+def take_screenshot(page_name, file_key, device_type, screen_size):
 	current_date = datetime.datetime.now()
-	screenshot_name = f"{file_key}--{current_date.year}-{current_date.month}-{current_date.day}--{current_date.microsecond}"
+	screenshot_name = f"{file_key}--{current_date.year}-{current_date.month}-{current_date.day}--{device_type}"
 	
 	outuptDir = f'{ss_dir_path}/{file_key}'
 	utils.createDir(outuptDir)
@@ -51,31 +30,50 @@ def take_screenshot(page_name, file_key, screen_size):
 	options = Options()
 	options.add_argument("--headless")
 	options.add_argument(screen_size)
+	options.add_argument('log-level=2')
 
 	driver = webdriver.Chrome(chrome_options=options, executable_path='./chromedriver', service_args=["--log-path=./Logs/DubiousDan.log"])
 
 
 	driver.get(page_name)
-	time.sleep(2) # Let the user actually see something!
+	# print('ncookie PRE')
+	# print(driver.get_cookie("ApplicationGatewayAffinity"))
+	# print(driver.get_cookie("ApplicationGatewayAffinityCORS"))
+	
+	
+	driver.add_cookie({"name": "ApplicationGatewayAffinity", "value": "ed56ad980dd6de285a1aa9141afb565c"})
+	driver.add_cookie({"name": "ApplicationGatewayAffinityCORS", "value": "ed56ad980dd6de285a1aa9141afb565c"})
+	driver.refresh()
+	# print('ncookie POST')
+	# print(driver.get_cookie("ApplicationGatewayAffinity"))
+	# print(driver.get_cookie("ApplicationGatewayAffinityCORS"))
+
+	#time.sleep(2) # Let the user actually see something!
 	
 	try:
 		popup = driver.find_element(By.CSS_SELECTOR, '#ltkpopup-close-button .ltkpopup-close')
 		if(popup.size['width']>0):
 			popup.click()
 	except:
-		print("probably the popup doesnt exists")
+		print("\n\n INFO: probably the popup doesnt exists \n\n")
 
-	el = driver.find_element(By.TAG_NAME,'body')
-	el.screenshot(f'{outuptDir}/{screenshot_name}.png')
-	print(f'\n\n ***Screenshot: {screenshot_name} succsefully saved *** \n\n')
+
+	try:
+		el = driver.find_element(By.TAG_NAME,'html')
+		el.screenshot(f'{outuptDir}/{screenshot_name}.png')
+		print(f'\n\n ***Screenshot: {screenshot_name} successfully saved *** \n\n')
+	except:
+		print("\n\n There was a problem while trying to take the screenshot using <html> tag. \n\n")
+
 	driver.quit()
 
 for page in pages_list:
+	page_json = json.loads(page)
 	# desktop
-	take_screenshot(page['url'], page['key'], "window-size=1400,10000")
+	take_screenshot(page_json['url'], page_json['key'], 'D', "window-size=1400,10000")
 
 	# mobile
-	take_screenshot(page['url'], page['key'], "window-size=414,10000")
+	take_screenshot(page_json['url'], page_json['key'], 'M', "window-size=414,10000")
 
 print("\n\n")
 print("====================================")
